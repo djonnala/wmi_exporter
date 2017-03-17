@@ -17,11 +17,68 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
+
+	consul "github.com/hashicorp/consul/api"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 )
 
 // WmiCollector implements the prometheus.Collector interface.
 type WmiCollector struct {
 	collectors map[string]collector.Collector
+}
+
+func Register() error {
+	//get EC2 metadata
+	svc := ec2metadata.New()
+	if (svc.Available())
+	{
+		iddoc := svc.GetInstanceIdentityDocument()
+		tags := [
+		"AvailabilityZone="+iddoc.AvailabilityZone+";",
+		"Region="+iddoc.Region+";",
+		"InstanceID=" + iddoc.InstanceID + ";",
+		"InstanceType=" + iddoc.InstanceType + ";",
+		"AccountID=" + iddoc.AccountID + ";"
+		]
+	}
+	//prepare for consul registration
+	reg := consul.CatalogRegistration
+	{
+	    Node       : hostname,
+	    Address    : hostip,
+	    Datacenter : dc,
+	    Service    : &consul.AgentService
+		{
+			ID     : serviceID,
+		    Service: serviceName,
+		    Tags   : tags
+		    Port   : port,
+		    Address: hostip
+		}
+	    Check      : &consul.AgentCheck
+		{
+			Node   : hostname,
+		    CheckID: "service:" + serviceID,
+		    Name   : serviceID + " health check",
+		    Status : "passing",
+		    ServiceID : serviceID
+		}
+	}
+	//make the API call to register
+	return consul.NewClient(consulConfig).Catalog().Register(&reg, nil)
+}
+
+// DeRegister a service with consul local agent
+func DeRegister() error {
+	//func (c *Catalog) Deregister(dereg *CatalogDeregistration, q *WriteOptions) (*WriteMeta, error)
+	dereg := consul.CatalogDeregistration
+	{
+		Node       : hostname,
+		Datacenter : dc,
+		ServiceID  : serviceID
+	}
+	return consul.NewClient(consulConfig).Catalog().Deregister(&dereg, nil)
 }
 
 const (
@@ -40,6 +97,10 @@ var (
 		},
 		[]string{"collector", "result"},
 	)
+//	consulConfig = <needs to be created & populated based on the input flags for endpoing>
+//  hostname = <need to get the hostname resolved and into this variable/constant>
+//  hostip = <need to get the IP resolved and into this variable/constant>
+//  consulConfigFile = <needs to be setup based on the flag >
 )
 
 // Describe sends all the descriptors of the collectors included to
@@ -136,6 +197,7 @@ func main() {
 		metricsPath       = flag.String("telemetry.path", "/metrics", "URL path for surfacing collected metrics.")
 		enabledCollectors = flag.String("collectors.enabled", filterAvailableCollectors(defaultCollectors), "Comma-separated list of collectors to use. Use '[default]' as a placeholder for all the collectors enabled by default")
 		printCollectors   = flag.Bool("collectors.print", false, "If true, print available collectors and exit.")
+		consulConfigFile  = flag.String("consul.configFile", "consul.conf", "Configurations for consul based self-discovery.")
 	)
 	flag.Parse()
 
@@ -222,6 +284,8 @@ func (s *wmiExporterService) Execute(args []string, r <-chan svc.ChangeRequest, 
 	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown
 	changes <- svc.Status{State: svc.StartPending}
 	changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
+	//register to consul
+	err := Register()
 loop:
 	for {
 		select {
@@ -230,6 +294,8 @@ loop:
 			case svc.Interrogate:
 				changes <- c.CurrentStatus
 			case svc.Stop, svc.Shutdown:
+				//deregister from consul
+				err := DeRegister()
 				s.stopCh <- true
 				break loop
 			default:
