@@ -21,6 +21,20 @@ import (
 	consul "github.com/hashicorp/consul/api"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ec2"
+)
+
+const (
+        // Backfill value for missing/empty, required tags. NOTE: this value must align with the one declared in the
+        // Java code for the aws-surveiller project. See:
+        // https://github.com/dev9com/aws-surveiller/src/main/java/com/tmobile/ucm/surveiller/model/Constants.java
+        Untagged = "UNTAGGED"
+
+        // timeout specifies the number of iterations after which a metric times out,
+        // i.e. becomes stale and is removed from collectdCollector.valueLists. It is
+        // modeled and named after the top-level "Timeout" setting of collectd.
+        timeout = 2
 )
 
 // WmiCollector implements the prometheus.Collector interface.
@@ -28,6 +42,53 @@ type WmiCollector struct {
 	collectors map[string]collector.Collector
 }
 
+// newLabels converts the plugin and type instance of vl to a set of prometheus.Labels.
+func newLabels(vl api.ValueList, md metadata) prometheus.Labels {
+    labels := prometheus.Labels{}
+
+    // Process the expectedTags. At this point of this function call, all the expectedTags should be present
+    // where any missing, expected tag should have already been backfilled with a default value
+    var stackValue, roleValue *string = nil, nil
+    for eTag, _ := range expectedTags {
+            if tagVal, ok := md.tags[eTag]; ok {
+                    // Special case for Stack and Role as we need to merge their tag keys/values into a single tag
+                    if eTag == ETagStack {
+                            stackValue = &tagVal
+                    } else if eTag == ETagRole {
+                            roleValue = &tagVal
+                    } else {
+                            labels[strings.ToLower(eTag)] = tagVal
+                    }
+            }
+    }
+
+    // Special case: merge the Stack and Role into a single tag
+    labels[strings.Join([]string{strings.ToLower(ETagStack), strings.ToLower(ETagRole)}, "_")] =
+            strings.Join([]string{*stackValue, *roleValue}, "_")
+
+    // TODO: Extra-defensive? Validate all required tags are present?
+
+    // Additional tags
+    labels["host"] = md.instanceId
+    labels["instance"] = vl.Host
+
+    if vl.PluginInstance != "" {
+            labels[vl.Plugin] = vl.PluginInstance
+    }
+
+    if vl.TypeInstance != "" {
+            if vl.PluginInstance == "" {
+                    labels[vl.Plugin] = vl.TypeInstance
+            } else {
+                    labels["type"] = vl.TypeInstance
+            }
+    }
+
+    log.Debugf("DSNames: %v, Values: %v, Type: %v, labels: %v", vl.DSNames, vl.Values, vl.Type, labels)
+
+    return labels
+}
+		
 func Register() error {
 	//get EC2 metadata
 	svc := ec2metadata.New()
@@ -198,6 +259,22 @@ func main() {
 		enabledCollectors = flag.String("collectors.enabled", filterAvailableCollectors(defaultCollectors), "Comma-separated list of collectors to use. Use '[default]' as a placeholder for all the collectors enabled by default")
 		printCollectors   = flag.Bool("collectors.print", false, "If true, print available collectors and exit.")
 		consulConfigFile  = flag.String("consul.configFile", "consul.conf", "Configurations for consul based self-discovery.")
+		metadataRefreshPeriod = flag.Int("metadata.refresh.period.min", 1, "refresh period in mins for retrieving metadata")
+
+        // Required resource tags used for mapping to Prometheus metric labels. This set of tags needs to align with
+        // those defined by a shared, UCM configuration
+        ETagApplication = "Application"
+        ETagEnvironment = "Environment"
+        ETagStack       = "Stack"
+        ETagRole        = "Role"
+        ETagName        = "Name"
+        expectedTags    = map[string]int{
+                ETagName:        1,
+                ETagApplication: 1,
+                ETagEnvironment: 1,
+                ETagStack:       1,
+                ETagRole:        1,
+        }
 	)
 	flag.Parse()
 
