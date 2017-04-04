@@ -40,6 +40,7 @@ var (
 		},
 		[]string{"collector", "result"},
 	)
+	config ConfigurationParameters
 )
 
 // Describe sends all the descriptors of the collectors included to
@@ -132,27 +133,11 @@ func init() {
 func main() {
 	var (
 		showVersion       = flag.Bool("version", false, "Print version information.")
+		printCollectors   = flag.Bool("collectors.print", false, "If true, print available collectors and exit.")
+		configFile        = flag.String("config.file", "", "complete path to configuration file")
 		listenAddress     = flag.String("telemetry.addr", ":9182", "host:port for WMI exporter.")
 		metricsPath       = flag.String("telemetry.path", "/metrics", "URL path for surfacing collected metrics.")
 		enabledCollectors = flag.String("collectors.enabled", filterAvailableCollectors(defaultCollectors), "Comma-separated list of collectors to use. Use '[default]' as a placeholder for all the collectors enabled by default")
-		printCollectors   = flag.Bool("collectors.print", false, "If true, print available collectors and exit.")
-		//		metadataRefreshPeriod = flag.Int("metadata.refresh.period.min", 1, "refresh period in mins for retrieving metadata")
-
-		// Required resource tags used for mapping to Prometheus metric labels. This set of tags needs to align with
-		// those defined by a shared, UCM configuration
-		/*		ETagApplication = "Application"
-				ETagEnvironment = "Environment"
-				ETagStack       = "Stack"
-				ETagRole        = "Role"
-				ETagName        = "Name"
-				expectedTags    = map[string]int{
-					ETagName:        1,
-					ETagApplication: 1,
-					ETagEnvironment: 1,
-					ETagStack:       1,
-					ETagRole:        1,
-				}
-		*/
 	)
 	flag.Parse()
 
@@ -184,7 +169,9 @@ func main() {
 		go svc.Run(serviceName, &wmiExporterService{stopCh: stopCh})
 	}
 
-	collectors, err := loadCollectors(*enabledCollectors)
+	config = InitializeFromConfig(*configFile, *listenAddress, *metricsPath, *enabledCollectors)
+
+	collectors, err := loadCollectors(config.collectors.enabledCollectors)
 	if err != nil {
 		log.Fatalf("Couldn't load collectors: %s", err)
 	}
@@ -194,18 +181,18 @@ func main() {
 	nodeCollector := WmiCollector{collectors: collectors}
 	prometheus.MustRegister(nodeCollector)
 
-	http.Handle(*metricsPath, prometheus.Handler())
+	http.Handle(config.service.metricPath, prometheus.Handler())
 	http.HandleFunc("/health", healthCheck)
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, *metricsPath, http.StatusMovedPermanently)
+		http.Redirect(w, r, config.service.metricPath, http.StatusMovedPermanently)
 	})
 
 	log.Infoln("Starting WMI exporter", version.Info())
 	log.Infoln("Build context", version.BuildContext())
 
 	go func() {
-		log.Infoln("Starting server on", *listenAddress)
-		if err := http.ListenAndServe(*listenAddress, nil); err != nil {
+		log.Infoln("Starting server on", config.service.listenAddress)
+		if err := http.ListenAndServe(config.service.listenAddress, nil); err != nil {
 			log.Fatalf("cannot start WMI exporter: %s", err)
 		}
 	}()
@@ -240,7 +227,9 @@ func (s *wmiExporterService) Execute(args []string, r <-chan svc.ChangeRequest, 
 	changes <- svc.Status{State: svc.StartPending}
 	changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
 	//register to consul
-	Register()
+	if config.serviceDiscovery.enabled {
+		Register()
+	}
 loop:
 	for {
 		select {
@@ -250,7 +239,9 @@ loop:
 				changes <- c.CurrentStatus
 			case svc.Stop, svc.Shutdown:
 				//deregister from consul
-				DeRegister()
+				if config.serviceDiscovery.enabled {
+					DeRegister()
+				}
 				s.stopCh <- true
 				break loop
 			default:

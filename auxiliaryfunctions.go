@@ -3,6 +3,9 @@ package main
 import (
 	"github.com/prometheus/common/log"
 
+	"os"
+
+	toml "github.com/BurntSushi/toml"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -27,9 +30,24 @@ const (
 	port           = 9103
 	region         = "us-west-2"
 	consulEndpoint = "dev-ucm-con-w2a-a.corporate.t-mobile.com"
+	// Required resource tags used for mapping to Prometheus metric labels. This set of tags needs to align with
+	// those defined by a shared, UCM configuration
+	/*		ETagApplication = "Application"
+			ETagEnvironment = "Environment"
+			ETagStack       = "Stack"
+			ETagRole        = "Role"
+			ETagName        = "Name"
+			expectedTags    = map[string]int{
+				ETagName:        1,
+				ETagApplication: 1,
+				ETagEnvironment: 1,
+				ETagStack:       1,
+				ETagRole:        1,
+			}
+	*/
 )
 
-// Register this node to consul
+// Register the wmi_exporter service from the consul endpoint
 func Register() {
 	//get EC2 metadata
 	sess := session.Must(session.NewSession(&aws.Config{
@@ -91,7 +109,7 @@ func Register() {
 
 }
 
-// DeRegister a service with consul local agent
+// DeRegister the wmi_exporter service from the consul endpoint
 func DeRegister() {
 	//func (c *Catalog) Deregister(dereg *CatalogDeregistration, q *WriteOptions) (*WriteMeta, error)
 	dereg := consul.CatalogDeregistration{
@@ -115,6 +133,31 @@ func DeRegister() {
 	} else {
 		log.Debugf("OK: Consul deregistration succeeded after %f ns.", w.RequestTime.Nanoseconds())
 	}
+}
+
+// InitializeFromConfig reads configuration parameters from configuration file and initializes this service
+func InitializeFromConfig(configfile string, listenAddress string, metricsPath string, enabledCollectors string) ConfigurationParameters {
+	conf := ConfigurationParameters{}
+
+	if configfile == "" {
+		return conf
+	}
+
+	f, err := os.Open(configfile)
+	if err != nil {
+		log.Fatalf("Cannot open configuration file at %s. Error=%s", configfile, err)
+	} else {
+		defer f.Close()
+		md, err := toml.DecodeReader(f, conf)
+		if err != nil {
+			log.Fatalf("Cannot parse configuration file at %s. Error=%s", configfile, err)
+		}
+		if u := md.Undecoded(); len(u) > 0 {
+			log.Fatalf("extra keys in %s: %v", configfile, u)
+		}
+	}
+	//at this point, conf is a fully loaded configuration now; now initialize everything from conf
+	return conf
 }
 
 // newLabels converts the plugin and type instance of vl to a set of prometheus.Labels.
