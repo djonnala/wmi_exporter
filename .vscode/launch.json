@@ -9,7 +9,7 @@
             "program": "${workspaceRoot}"
         },
         {
-            "name": "Launch",
+            "name": "Launch - version",
             "type": "go",
             "request": "launch",
             "mode": "debug",
@@ -18,7 +18,46 @@
             "host": "127.0.0.1",
             "program": "${workspaceRoot}",
             "env": {},
-            "args": [],
+            "args": ["-version"],
+            "showLog": true
+        },
+        {
+            "name": "Launch - printCollectors",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "remotePath": "",
+            "port": 2345,
+            "host": "127.0.0.1",
+            "program": "${workspaceRoot}",
+            "env": {},
+            "args": ["-collectors.print"],
+            "showLog": true
+        },
+        {
+            "name": "Launch - all cmd",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "remotePath": "",
+            "port": 2345,
+            "host": "127.0.0.1",
+            "program": "${workspaceRoot}",
+            "env": {},
+            "args": ["-telemetry.addr=9104","-telemetry.path=/test123","-collectors.enabled=cpu,os"],
+            "showLog": true
+        },
+        {
+            "name": "Launch - conf file",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "remotePath": "",
+            "port": 2345,
+            "host": "127.0.0.1",
+            "program": "${workspaceRoot}",
+            "env": {},
+            "args": ["-config.file=wmi_exporter.toml"],
             "showLog": true
         }
     ]

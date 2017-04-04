@@ -6,26 +6,26 @@ import (
 
 //ConfigurationParameters provides the struct to hold configuration parameters from config file
 type ConfigurationParameters struct {
+	Title string
 	//serviceDiscovery captures configuration parameters needed for service discovery registration with Consul
-	serviceDiscovery ConsulConf
+	ServiceDiscovery ConsulConf
 	//metadataReporting captures which metadata to be registered with service into consul for use during discovery
-	metadataReporting MetaDataConf
+	MetadataReporting MetaDataConf
 	//awsTagsToLabels captures the aws tags that should be added to reported metrics as Labels
-	awsTagsToLabels LabelConf
+	AwsTagsToLabels LabelConf
 	//collectors captures the list of collectors to use
-	collectors CollectorConf
+	Collectors CollectorConf
 	//service captures agent related configurations
-	service ServiceConf
+	Service ServiceConf
 }
 
 //ConsulConf captures configuration parameters needed for service discovery registration with Consul
 type ConsulConf struct {
-	enabled     bool
-	endpoint    string
-	port        int
-	datacenter  string
-	serviceID   string
-	serviceName string
+	enabled    bool
+	endpoint   string
+	port       int
+	datacenter string
+	serviceID  string
 }
 
 //MetaDataConf captures which metadata to be registered with service into consul for use during discovery
@@ -65,6 +65,7 @@ type ServiceConf struct {
 	listenPort         int
 	metricPath         string
 	collectionInterval int
+	serviceName        string
 }
 
 func (c ConsulConf) getAddress() string {

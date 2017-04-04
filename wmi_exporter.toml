@@ -1,21 +1,22 @@
 
-[serviceDiscovery]
+Title = "WMI Exporter Configuration"
+
+[ServiceDiscovery]
     enabled = true
     endpoint = "dev-ucm-con-w2a-a.corporate.t-mobile.com"
     port = 5500
     datacenter = "ucm-west"
     serviceID = "ucm.agent.wmiExporter"
-    serviceName = "wmi_exporter"
 
-[metadataReporting]
+[MetadataReporting]
     enabled = true
     awsregion = "us-west-2"
 
-[awsTagsToLabels]
+[AwsTagsToLabels]
     enabled = true
     refreshPeriod = 3600
 
-[collectors]
+[Collectors]
     goCollectionEnabled = true
     exporterCollectionEnabled = true
     wmiCollectionEnabled = true
@@ -25,7 +26,8 @@
         wmiMetricName = ["test"]
         exportName = "export_test"
 
-[service]
+[Service]
     listenPort =  9103
     metricPath = "/metrics"
     collectionInterval = 60
+    serviceName = "wmi_exporter"

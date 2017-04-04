@@ -3,8 +3,6 @@ package main
 import (
 	"github.com/prometheus/common/log"
 
-	"os"
-
 	toml "github.com/BurntSushi/toml"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
@@ -47,7 +45,7 @@ const (
 func Register() {
 	//get EC2 metadata
 	sess := session.Must(session.NewSession(&aws.Config{
-		Region: aws.String(ucmconfig.metadataReporting.awsregion),
+		Region: aws.String(ucmconfig.MetadataReporting.awsregion),
 	}))
 	svc := ec2metadata.New(sess)
 	var tags []string
@@ -69,26 +67,26 @@ func Register() {
 	reg := consul.CatalogRegistration{
 		Node:       hostname,
 		Address:    hostip,
-		Datacenter: ucmconfig.serviceDiscovery.datacenter,
+		Datacenter: ucmconfig.ServiceDiscovery.datacenter,
 		Service: &consul.AgentService{
-			ID:      ucmconfig.serviceDiscovery.serviceID,
-			Service: ucmconfig.serviceDiscovery.serviceName,
+			ID:      ucmconfig.ServiceDiscovery.serviceID,
+			Service: ucmconfig.Service.serviceName,
 			Tags:    tags,
-			Port:    ucmconfig.service.listenPort,
+			Port:    ucmconfig.Service.listenPort,
 			Address: hostip,
 		},
 		Check: &consul.AgentCheck{
 			Node:      hostname,
-			CheckID:   "service:" + ucmconfig.serviceDiscovery.serviceID,
-			Name:      ucmconfig.serviceDiscovery.serviceID + " health check",
+			CheckID:   "service:" + ucmconfig.ServiceDiscovery.serviceID,
+			Name:      ucmconfig.ServiceDiscovery.serviceID + " health check",
 			Status:    consul.HealthPassing,
-			ServiceID: ucmconfig.serviceDiscovery.serviceID,
+			ServiceID: ucmconfig.ServiceDiscovery.serviceID,
 		},
 	}
 
 	//Get the Consul client
 	cconfig := consul.DefaultNonPooledConfig()
-	cconfig.Address = ucmconfig.serviceDiscovery.getAddress()
+	cconfig.Address = ucmconfig.ServiceDiscovery.getAddress()
 	client, err := consul.NewClient(cconfig)
 	if err != nil {
 		log.Error(err)
@@ -110,12 +108,12 @@ func DeRegister() {
 	//func (c *Catalog) Deregister(dereg *CatalogDeregistration, q *WriteOptions) (*WriteMeta, error)
 	dereg := consul.CatalogDeregistration{
 		Node:       hostname,
-		Datacenter: ucmconfig.serviceDiscovery.datacenter,
-		ServiceID:  ucmconfig.serviceDiscovery.serviceID,
+		Datacenter: ucmconfig.ServiceDiscovery.datacenter,
+		ServiceID:  ucmconfig.ServiceDiscovery.serviceID,
 	}
 	//Get the Consul client
 	cconfig := consul.DefaultNonPooledConfig()
-	cconfig.Address = ucmconfig.serviceDiscovery.getAddress()
+	cconfig.Address = ucmconfig.ServiceDiscovery.getAddress()
 	client, err := consul.NewClient(cconfig)
 	if err != nil {
 		log.Error(err)
@@ -139,18 +137,9 @@ func InitializeFromConfig(configfile string, listenAddress string, metricsPath s
 		return conf
 	}
 
-	f, err := os.Open(configfile)
+	_, err := toml.DecodeFile(configfile, &conf)
 	if err != nil {
-		log.Fatalf("Cannot open configuration file at %s. Error=%s", configfile, err)
-	} else {
-		defer f.Close()
-		md, err := toml.DecodeReader(f, conf)
-		if err != nil {
-			log.Fatalf("Cannot parse configuration file at %s. Error=%s", configfile, err)
-		}
-		if u := md.Undecoded(); len(u) > 0 {
-			log.Fatalf("extra keys in %s: %v", configfile, u)
-		}
+		log.Fatalf("Cannot parse configuration file at %s. Error=%s", configfile, err)
 	}
 	//at this point, conf is a fully loaded configuration now; now initialize everything from conf
 	return conf

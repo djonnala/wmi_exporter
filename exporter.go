@@ -167,10 +167,10 @@ func main() {
 
 	stopCh := make(chan bool)
 	if !isInteractive {
-		go svc.Run(ucmconfig.serviceDiscovery.serviceName, &wmiExporterService{stopCh: stopCh})
+		go svc.Run(ucmconfig.Service.serviceName, &wmiExporterService{stopCh: stopCh})
 	}
 
-	collectors, err := loadCollectors(ucmconfig.collectors.enabledCollectors)
+	collectors, err := loadCollectors(ucmconfig.Collectors.enabledCollectors)
 	if err != nil {
 		log.Fatalf("Couldn't load collectors: %s", err)
 	}
@@ -180,18 +180,18 @@ func main() {
 	nodeCollector := WmiCollector{collectors: collectors}
 	prometheus.MustRegister(nodeCollector)
 
-	http.Handle(ucmconfig.service.metricPath, prometheus.Handler())
+	http.Handle(ucmconfig.Service.metricPath, prometheus.Handler())
 	http.HandleFunc("/health", healthCheck)
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, ucmconfig.service.metricPath, http.StatusMovedPermanently)
+		http.Redirect(w, r, ucmconfig.Service.metricPath, http.StatusMovedPermanently)
 	})
 
 	log.Infoln("Starting WMI exporter", version.Info())
 	log.Infoln("Build context", version.BuildContext())
 
 	go func() {
-		log.Infoln("Starting server on", ucmconfig.service.getAddress())
-		if err := http.ListenAndServe(ucmconfig.service.getAddress(), nil); err != nil {
+		log.Infoln("Starting server on", ucmconfig.Service.getAddress())
+		if err := http.ListenAndServe(ucmconfig.Service.getAddress(), nil); err != nil {
 			log.Fatalf("cannot start WMI exporter: %s", err)
 		}
 	}()
