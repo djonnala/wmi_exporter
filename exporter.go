@@ -13,28 +13,35 @@ import (
 
 	"golang.org/x/sys/windows/svc"
 
-	"github.com/martinlindhe/wmi_exporter/collector"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
+	"github.com/sujitvp/wmi_exporter/collector"
 
-	consul "github.com/hashicorp/consul/api"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	consul "github.com/hashicorp/consul/api"
 )
 
 const (
-        // Backfill value for missing/empty, required tags. NOTE: this value must align with the one declared in the
-        // Java code for the aws-surveiller project. See:
-        // https://github.com/dev9com/aws-surveiller/src/main/java/com/tmobile/ucm/surveiller/model/Constants.java
-        Untagged = "UNTAGGED"
+	// Untagged specifies the default string to be populated when a required tag is missing/empty
+	// NOTE: this value must align with the one declared in the Java code for the aws-surveiller project. See:
+	// https://github.com/dev9com/aws-surveiller/src/main/java/com/tmobile/ucm/surveiller/model/Constants.java
+	Untagged = "UNTAGGED"
 
-        // timeout specifies the number of iterations after which a metric times out,
-        // i.e. becomes stale and is removed from collectdCollector.valueLists. It is
-        // modeled and named after the top-level "Timeout" setting of collectd.
-        timeout = 2
+	// timeout specifies the number of iterations after which a metric times out,
+	// i.e. becomes stale and is removed from collectdCollector.valueLists. It is
+	// modeled and named after the top-level "Timeout" setting of collectd.
+	timeout = 2
+
+	hostname       = "testServer"
+	hostip         = "10.0.0.1"
+	serviceID      = "ABCD"
+	dc             = "ucm-west"
+	port           = 9103
+	region         = "us-west-2"
+	consulEndpoint = "dev-ucm-con-w2a-a.corporate.t-mobile.com"
 )
 
 // WmiCollector implements the prometheus.Collector interface.
@@ -43,103 +50,139 @@ type WmiCollector struct {
 }
 
 // newLabels converts the plugin and type instance of vl to a set of prometheus.Labels.
-func newLabels(vl api.ValueList, md metadata) prometheus.Labels {
-    labels := prometheus.Labels{}
+/*func newLabels(vl api.ValueList, md metadata) prometheus.Labels {
+	labels := prometheus.Labels{}
 
-    // Process the expectedTags. At this point of this function call, all the expectedTags should be present
-    // where any missing, expected tag should have already been backfilled with a default value
-    var stackValue, roleValue *string = nil, nil
-    for eTag, _ := range expectedTags {
-            if tagVal, ok := md.tags[eTag]; ok {
-                    // Special case for Stack and Role as we need to merge their tag keys/values into a single tag
-                    if eTag == ETagStack {
-                            stackValue = &tagVal
-                    } else if eTag == ETagRole {
-                            roleValue = &tagVal
-                    } else {
-                            labels[strings.ToLower(eTag)] = tagVal
-                    }
-            }
-    }
+	// Process the expectedTags. At this point of this function call, all the expectedTags should be present
+	// where any missing, expected tag should have already been backfilled with a default value
+	var stackValue, roleValue *string = nil, nil
+	for eTag, _ := range expectedTags {
+		if tagVal, ok := md.tags[eTag]; ok {
+			// Special case for Stack and Role as we need to merge their tag keys/values into a single tag
+			if eTag == ETagStack {
+				stackValue = &tagVal
+			} else if eTag == ETagRole {
+				roleValue = &tagVal
+			} else {
+				labels[strings.ToLower(eTag)] = tagVal
+			}
+		}
+	}
 
-    // Special case: merge the Stack and Role into a single tag
-    labels[strings.Join([]string{strings.ToLower(ETagStack), strings.ToLower(ETagRole)}, "_")] =
-            strings.Join([]string{*stackValue, *roleValue}, "_")
+	// Special case: merge the Stack and Role into a single tag
+	labels[strings.Join([]string{strings.ToLower(ETagStack), strings.ToLower(ETagRole)}, "_")] =
+		strings.Join([]string{*stackValue, *roleValue}, "_")
 
-    // TODO: Extra-defensive? Validate all required tags are present?
+	// TODO: Extra-defensive? Validate all required tags are present?
 
-    // Additional tags
-    labels["host"] = md.instanceId
-    labels["instance"] = vl.Host
+	// Additional tags
+	labels["host"] = md.instanceId
+	labels["instance"] = vl.Host
 
-    if vl.PluginInstance != "" {
-            labels[vl.Plugin] = vl.PluginInstance
-    }
+	if vl.PluginInstance != "" {
+		labels[vl.Plugin] = vl.PluginInstance
+	}
 
-    if vl.TypeInstance != "" {
-            if vl.PluginInstance == "" {
-                    labels[vl.Plugin] = vl.TypeInstance
-            } else {
-                    labels["type"] = vl.TypeInstance
-            }
-    }
+	if vl.TypeInstance != "" {
+		if vl.PluginInstance == "" {
+			labels[vl.Plugin] = vl.TypeInstance
+		} else {
+			labels["type"] = vl.TypeInstance
+		}
+	}
 
-    log.Debugf("DSNames: %v, Values: %v, Type: %v, labels: %v", vl.DSNames, vl.Values, vl.Type, labels)
+	log.Debugf("DSNames: %v, Values: %v, Type: %v, labels: %v", vl.DSNames, vl.Values, vl.Type, labels)
 
-    return labels
+	return labels
 }
-		
-func Register() error {
+*/
+
+// Register this node to consul
+func Register() {
 	//get EC2 metadata
-	svc := ec2metadata.New()
-	if (svc.Available())
-	{
-		iddoc := svc.GetInstanceIdentityDocument()
-		tags := [
-		"AvailabilityZone="+iddoc.AvailabilityZone+";",
-		"Region="+iddoc.Region+";",
-		"InstanceID=" + iddoc.InstanceID + ";",
-		"InstanceType=" + iddoc.InstanceType + ";",
-		"AccountID=" + iddoc.AccountID + ";"
-		]
+	sess := session.Must(session.NewSession(&aws.Config{
+		Region: aws.String(region),
+	}))
+	svc := ec2metadata.New(sess)
+	var tags []string
+	if svc.Available() {
+		iddoc, err := svc.GetInstanceIdentityDocument()
+		if err != nil {
+			log.Error(err)
+		}
+		tags := make([]string, 5)
+		tags[0] = "AvailabilityZone=" + iddoc.AvailabilityZone + ";"
+		tags[1] = "Region=" + iddoc.Region + ";"
+		tags[2] = "InstanceID=" + iddoc.InstanceID + ";"
+		tags[3] = "InstanceType=" + iddoc.InstanceType + ";"
+		tags[4] = "AccountID=" + iddoc.AccountID + ";"
+
 	}
+
 	//prepare for consul registration
-	reg := consul.CatalogRegistration
-	{
-	    Node       : hostname,
-	    Address    : hostip,
-	    Datacenter : dc,
-	    Service    : &consul.AgentService
-		{
-			ID     : serviceID,
-		    Service: serviceName,
-		    Tags   : tags
-		    Port   : port,
-		    Address: hostip
-		}
-	    Check      : &consul.AgentCheck
-		{
-			Node   : hostname,
-		    CheckID: "service:" + serviceID,
-		    Name   : serviceID + " health check",
-		    Status : "passing",
-		    ServiceID : serviceID
-		}
+	reg := consul.CatalogRegistration{
+		Node:       hostname,
+		Address:    hostip,
+		Datacenter: dc,
+		Service: &consul.AgentService{
+			ID:      serviceID,
+			Service: serviceName,
+			Tags:    tags,
+			Port:    port,
+			Address: hostip,
+		},
+		Check: &consul.AgentCheck{
+			Node:      hostname,
+			CheckID:   "service:" + serviceID,
+			Name:      serviceID + " health check",
+			Status:    "passing",
+			ServiceID: serviceID,
+		},
 	}
+
+	//Get the Consul client
+	config := consul.DefaultNonPooledConfig()
+	config.Address = consulEndpoint
+	client, err := consul.NewClient(config)
+	if err != nil {
+		log.Error(err)
+	}
+	catalog := client.Catalog()
+
 	//make the API call to register
-	return consul.NewClient(consulConfig).Catalog().Register(&reg, nil)
+	w, err := catalog.Register(&reg, &consul.WriteOptions{})
+	if err != nil {
+		log.Error(err)
+	} else {
+		log.Debugf("OK: Consul registration succeeded after %f ns.", w.RequestTime.Nanoseconds())
+	}
+
 }
 
 // DeRegister a service with consul local agent
-func DeRegister() error {
+func DeRegister() {
 	//func (c *Catalog) Deregister(dereg *CatalogDeregistration, q *WriteOptions) (*WriteMeta, error)
-	dereg := consul.CatalogDeregistration
-	{
-		Node       : hostname,
-		Datacenter : dc,
-		ServiceID  : serviceID
+	dereg := consul.CatalogDeregistration{
+		Node:       hostname,
+		Datacenter: dc,
+		ServiceID:  serviceID,
 	}
-	return consul.NewClient(consulConfig).Catalog().Deregister(&dereg, nil)
+	//Get the Consul client
+	config := consul.DefaultNonPooledConfig()
+	config.Address = consulEndpoint
+	client, err := consul.NewClient(config)
+	if err != nil {
+		log.Error(err)
+	}
+	catalog := client.Catalog()
+
+	//make the API call to register
+	w, err := catalog.Deregister(&dereg, nil)
+	if err != nil {
+		log.Error(err)
+	} else {
+		log.Debugf("OK: Consul deregistration succeeded after %f ns.", w.RequestTime.Nanoseconds())
+	}
 }
 
 const (
@@ -158,6 +201,7 @@ var (
 		},
 		[]string{"collector", "result"},
 	)
+
 //	consulConfig = <needs to be created & populated based on the input flags for endpoing>
 //  hostname = <need to get the hostname resolved and into this variable/constant>
 //  hostip = <need to get the IP resolved and into this variable/constant>
@@ -258,23 +302,23 @@ func main() {
 		metricsPath       = flag.String("telemetry.path", "/metrics", "URL path for surfacing collected metrics.")
 		enabledCollectors = flag.String("collectors.enabled", filterAvailableCollectors(defaultCollectors), "Comma-separated list of collectors to use. Use '[default]' as a placeholder for all the collectors enabled by default")
 		printCollectors   = flag.Bool("collectors.print", false, "If true, print available collectors and exit.")
-		consulConfigFile  = flag.String("consul.configFile", "consul.conf", "Configurations for consul based self-discovery.")
-		metadataRefreshPeriod = flag.Int("metadata.refresh.period.min", 1, "refresh period in mins for retrieving metadata")
+		//		metadataRefreshPeriod = flag.Int("metadata.refresh.period.min", 1, "refresh period in mins for retrieving metadata")
 
-        // Required resource tags used for mapping to Prometheus metric labels. This set of tags needs to align with
-        // those defined by a shared, UCM configuration
-        ETagApplication = "Application"
-        ETagEnvironment = "Environment"
-        ETagStack       = "Stack"
-        ETagRole        = "Role"
-        ETagName        = "Name"
-        expectedTags    = map[string]int{
-                ETagName:        1,
-                ETagApplication: 1,
-                ETagEnvironment: 1,
-                ETagStack:       1,
-                ETagRole:        1,
-        }
+		// Required resource tags used for mapping to Prometheus metric labels. This set of tags needs to align with
+		// those defined by a shared, UCM configuration
+		/*		ETagApplication = "Application"
+				ETagEnvironment = "Environment"
+				ETagStack       = "Stack"
+				ETagRole        = "Role"
+				ETagName        = "Name"
+				expectedTags    = map[string]int{
+					ETagName:        1,
+					ETagApplication: 1,
+					ETagEnvironment: 1,
+					ETagStack:       1,
+					ETagRole:        1,
+				}
+		*/
 	)
 	flag.Parse()
 
@@ -362,7 +406,7 @@ func (s *wmiExporterService) Execute(args []string, r <-chan svc.ChangeRequest, 
 	changes <- svc.Status{State: svc.StartPending}
 	changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
 	//register to consul
-	err := Register()
+	Register()
 loop:
 	for {
 		select {
@@ -372,7 +416,7 @@ loop:
 				changes <- c.CurrentStatus
 			case svc.Stop, svc.Shutdown:
 				//deregister from consul
-				err := DeRegister()
+				DeRegister()
 				s.stopCh <- true
 				break loop
 			default:
