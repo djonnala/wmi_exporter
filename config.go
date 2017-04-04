@@ -1,5 +1,9 @@
 package main
 
+import (
+	"strconv"
+)
+
 //ConfigurationParameters provides the struct to hold configuration parameters from config file
 type ConfigurationParameters struct {
 	//serviceDiscovery captures configuration parameters needed for service discovery registration with Consul
@@ -16,11 +20,12 @@ type ConfigurationParameters struct {
 
 //ConsulConf captures configuration parameters needed for service discovery registration with Consul
 type ConsulConf struct {
-	enabled    bool
-	endpoint   string
-	port       int
-	datacenter string
-	serviceID  string
+	enabled     bool
+	endpoint    string
+	port        int
+	datacenter  string
+	serviceID   string
+	serviceName string
 }
 
 //MetaDataConf captures which metadata to be registered with service into consul for use during discovery
@@ -56,7 +61,16 @@ type MetricMap struct {
 
 //ServiceConf captures agent related configurations
 type ServiceConf struct {
-	listenAddress      string
+	listenIP           string
+	listenPort         int
 	metricPath         string
 	collectionInterval int
+}
+
+func (c ConsulConf) getAddress() string {
+	return "http://" + c.endpoint + ":" + strconv.Itoa(c.port)
+}
+
+func (s ServiceConf) getAddress() string {
+	return s.listenIP + ":" + strconv.Itoa(s.listenPort)
 }

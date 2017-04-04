@@ -22,7 +22,6 @@ import (
 const (
 	defaultCollectors            = "cpu,cs,logical_disk,net,os,service,system"
 	defaultCollectorsPlaceholder = "[defaults]"
-	serviceName                  = "wmi_exporter"
 )
 
 // WmiCollector implements the prometheus.Collector interface.
@@ -40,7 +39,7 @@ var (
 		},
 		[]string{"collector", "result"},
 	)
-	config ConfigurationParameters
+	ucmconfig ConfigurationParameters
 )
 
 // Describe sends all the descriptors of the collectors included to
@@ -159,6 +158,8 @@ func main() {
 		return
 	}
 
+	ucmconfig = InitializeFromConfig(*configFile, *listenAddress, *metricsPath, *enabledCollectors)
+
 	isInteractive, err := svc.IsAnInteractiveSession()
 	if err != nil {
 		log.Fatal(err)
@@ -166,12 +167,10 @@ func main() {
 
 	stopCh := make(chan bool)
 	if !isInteractive {
-		go svc.Run(serviceName, &wmiExporterService{stopCh: stopCh})
+		go svc.Run(ucmconfig.serviceDiscovery.serviceName, &wmiExporterService{stopCh: stopCh})
 	}
 
-	config = InitializeFromConfig(*configFile, *listenAddress, *metricsPath, *enabledCollectors)
-
-	collectors, err := loadCollectors(config.collectors.enabledCollectors)
+	collectors, err := loadCollectors(ucmconfig.collectors.enabledCollectors)
 	if err != nil {
 		log.Fatalf("Couldn't load collectors: %s", err)
 	}
@@ -181,18 +180,18 @@ func main() {
 	nodeCollector := WmiCollector{collectors: collectors}
 	prometheus.MustRegister(nodeCollector)
 
-	http.Handle(config.service.metricPath, prometheus.Handler())
+	http.Handle(ucmconfig.service.metricPath, prometheus.Handler())
 	http.HandleFunc("/health", healthCheck)
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, config.service.metricPath, http.StatusMovedPermanently)
+		http.Redirect(w, r, ucmconfig.service.metricPath, http.StatusMovedPermanently)
 	})
 
 	log.Infoln("Starting WMI exporter", version.Info())
 	log.Infoln("Build context", version.BuildContext())
 
 	go func() {
-		log.Infoln("Starting server on", config.service.listenAddress)
-		if err := http.ListenAndServe(config.service.listenAddress, nil); err != nil {
+		log.Infoln("Starting server on", ucmconfig.service.getAddress())
+		if err := http.ListenAndServe(ucmconfig.service.getAddress(), nil); err != nil {
 			log.Fatalf("cannot start WMI exporter: %s", err)
 		}
 	}()
@@ -227,9 +226,7 @@ func (s *wmiExporterService) Execute(args []string, r <-chan svc.ChangeRequest, 
 	changes <- svc.Status{State: svc.StartPending}
 	changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
 	//register to consul
-	if config.serviceDiscovery.enabled {
-		Register()
-	}
+	Register()
 loop:
 	for {
 		select {
@@ -239,9 +236,7 @@ loop:
 				changes <- c.CurrentStatus
 			case svc.Stop, svc.Shutdown:
 				//deregister from consul
-				if config.serviceDiscovery.enabled {
-					DeRegister()
-				}
+				DeRegister()
 				s.stopCh <- true
 				break loop
 			default:

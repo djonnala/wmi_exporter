@@ -23,13 +23,9 @@ const (
 	// modeled and named after the top-level "Timeout" setting of collectd.
 	timeout = 2
 
-	hostname       = "testServer"
-	hostip         = "10.0.0.1"
-	serviceID      = "ABCD"
-	dc             = "ucm-west"
-	port           = 9103
-	region         = "us-west-2"
-	consulEndpoint = "dev-ucm-con-w2a-a.corporate.t-mobile.com"
+	hostname = "testServer"
+	hostip   = "10.0.0.1"
+
 	// Required resource tags used for mapping to Prometheus metric labels. This set of tags needs to align with
 	// those defined by a shared, UCM configuration
 	/*		ETagApplication = "Application"
@@ -51,7 +47,7 @@ const (
 func Register() {
 	//get EC2 metadata
 	sess := session.Must(session.NewSession(&aws.Config{
-		Region: aws.String(region),
+		Region: aws.String(ucmconfig.metadataReporting.awsregion),
 	}))
 	svc := ec2metadata.New(sess)
 	var tags []string
@@ -73,27 +69,27 @@ func Register() {
 	reg := consul.CatalogRegistration{
 		Node:       hostname,
 		Address:    hostip,
-		Datacenter: dc,
+		Datacenter: ucmconfig.serviceDiscovery.datacenter,
 		Service: &consul.AgentService{
-			ID:      serviceID,
-			Service: serviceName,
+			ID:      ucmconfig.serviceDiscovery.serviceID,
+			Service: ucmconfig.serviceDiscovery.serviceName,
 			Tags:    tags,
-			Port:    port,
+			Port:    ucmconfig.service.listenPort,
 			Address: hostip,
 		},
 		Check: &consul.AgentCheck{
 			Node:      hostname,
-			CheckID:   "service:" + serviceID,
-			Name:      serviceID + " health check",
-			Status:    "passing",
-			ServiceID: serviceID,
+			CheckID:   "service:" + ucmconfig.serviceDiscovery.serviceID,
+			Name:      ucmconfig.serviceDiscovery.serviceID + " health check",
+			Status:    consul.HealthPassing,
+			ServiceID: ucmconfig.serviceDiscovery.serviceID,
 		},
 	}
 
 	//Get the Consul client
-	config := consul.DefaultNonPooledConfig()
-	config.Address = consulEndpoint
-	client, err := consul.NewClient(config)
+	cconfig := consul.DefaultNonPooledConfig()
+	cconfig.Address = ucmconfig.serviceDiscovery.getAddress()
+	client, err := consul.NewClient(cconfig)
 	if err != nil {
 		log.Error(err)
 	}
@@ -114,13 +110,13 @@ func DeRegister() {
 	//func (c *Catalog) Deregister(dereg *CatalogDeregistration, q *WriteOptions) (*WriteMeta, error)
 	dereg := consul.CatalogDeregistration{
 		Node:       hostname,
-		Datacenter: dc,
-		ServiceID:  serviceID,
+		Datacenter: ucmconfig.serviceDiscovery.datacenter,
+		ServiceID:  ucmconfig.serviceDiscovery.serviceID,
 	}
 	//Get the Consul client
-	config := consul.DefaultNonPooledConfig()
-	config.Address = consulEndpoint
-	client, err := consul.NewClient(config)
+	cconfig := consul.DefaultNonPooledConfig()
+	cconfig.Address = ucmconfig.serviceDiscovery.getAddress()
+	client, err := consul.NewClient(cconfig)
 	if err != nil {
 		log.Error(err)
 	}

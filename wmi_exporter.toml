@@ -1,0 +1,31 @@
+
+[serviceDiscovery]
+    enabled = true
+    endpoint = "dev-ucm-con-w2a-a.corporate.t-mobile.com"
+    port = 5500
+    datacenter = "ucm-west"
+    serviceID = "ucm.agent.wmiExporter"
+    serviceName = "wmi_exporter"
+
+[metadataReporting]
+    enabled = true
+    awsregion = "us-west-2"
+
+[awsTagsToLabels]
+    enabled = true
+    refreshPeriod = 3600
+
+[collectors]
+    goCollectionEnabled = true
+    exporterCollectionEnabled = true
+    wmiCollectionEnabled = true
+    agentCollectionEnabled = false
+    enabledCollectors   = true
+    [metricNameMapping.0]
+        wmiMetricName = ["test"]
+        exportName = "export_test"
+
+[service]
+    listenPort =  9103
+    metricPath = "/metrics"
+    collectionInterval = 60
