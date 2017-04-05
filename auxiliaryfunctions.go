@@ -43,44 +43,48 @@ const (
 
 // Register the wmi_exporter service from the consul endpoint
 func Register() {
-	//get EC2 metadata
-	sess := session.Must(session.NewSession(&aws.Config{
-		Region: aws.String(ucmconfig.MetadataReporting.awsregion),
-	}))
-	svc := ec2metadata.New(sess)
+	if !ucmconfig.ServiceDiscovery.Enabled {
+		return
+	}
 	var tags []string
-	if svc.Available() {
-		iddoc, err := svc.GetInstanceIdentityDocument()
-		if err != nil {
-			log.Error(err)
-		}
-		tags := make([]string, 5)
-		tags[0] = "AvailabilityZone=" + iddoc.AvailabilityZone + ";"
-		tags[1] = "Region=" + iddoc.Region + ";"
-		tags[2] = "InstanceID=" + iddoc.InstanceID + ";"
-		tags[3] = "InstanceType=" + iddoc.InstanceType + ";"
-		tags[4] = "AccountID=" + iddoc.AccountID + ";"
+	if ucmconfig.MetadataReporting.Enabled {
+		//get EC2 metadata
+		sess := session.Must(session.NewSession(&aws.Config{
+			Region: aws.String(ucmconfig.MetadataReporting.AWSRegion),
+		}))
+		svc := ec2metadata.New(sess)
+		if svc.Available() {
+			iddoc, err := svc.GetInstanceIdentityDocument()
+			if err != nil {
+				log.Error(err)
+			}
+			tags := make([]string, 4)
+			tags[0] = "AvailabilityZone=" + iddoc.AvailabilityZone + ";"
+			tags[1] = "Region=" + iddoc.Region + ";"
+			tags[2] = "InstanceType=" + iddoc.InstanceType + ";"
+			tags[3] = "AccountID=" + iddoc.AccountID + ";"
 
+		}
 	}
 
 	//prepare for consul registration
 	reg := consul.CatalogRegistration{
 		Node:       hostname,
 		Address:    hostip,
-		Datacenter: ucmconfig.ServiceDiscovery.datacenter,
+		Datacenter: ucmconfig.ServiceDiscovery.Datacenter,
 		Service: &consul.AgentService{
-			ID:      ucmconfig.ServiceDiscovery.serviceID,
-			Service: ucmconfig.Service.serviceName,
+			ID:      ucmconfig.ServiceDiscovery.ServiceID,
+			Service: ucmconfig.Service.ServiceName,
 			Tags:    tags,
-			Port:    ucmconfig.Service.listenPort,
+			Port:    ucmconfig.Service.ListenPort,
 			Address: hostip,
 		},
 		Check: &consul.AgentCheck{
 			Node:      hostname,
-			CheckID:   "service:" + ucmconfig.ServiceDiscovery.serviceID,
-			Name:      ucmconfig.ServiceDiscovery.serviceID + " health check",
+			CheckID:   "service:" + ucmconfig.ServiceDiscovery.ServiceID,
+			Name:      ucmconfig.ServiceDiscovery.ServiceID + " health check",
 			Status:    consul.HealthPassing,
-			ServiceID: ucmconfig.ServiceDiscovery.serviceID,
+			ServiceID: ucmconfig.ServiceDiscovery.ServiceID,
 		},
 	}
 
@@ -105,11 +109,14 @@ func Register() {
 
 // DeRegister the wmi_exporter service from the consul endpoint
 func DeRegister() {
+	if !ucmconfig.ServiceDiscovery.Enabled {
+		return
+	}
 	//func (c *Catalog) Deregister(dereg *CatalogDeregistration, q *WriteOptions) (*WriteMeta, error)
 	dereg := consul.CatalogDeregistration{
 		Node:       hostname,
-		Datacenter: ucmconfig.ServiceDiscovery.datacenter,
-		ServiceID:  ucmconfig.ServiceDiscovery.serviceID,
+		Datacenter: ucmconfig.ServiceDiscovery.Datacenter,
+		ServiceID:  ucmconfig.ServiceDiscovery.ServiceID,
 	}
 	//Get the Consul client
 	cconfig := consul.DefaultNonPooledConfig()

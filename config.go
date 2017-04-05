@@ -21,57 +21,57 @@ type ConfigurationParameters struct {
 
 //ConsulConf captures configuration parameters needed for service discovery registration with Consul
 type ConsulConf struct {
-	enabled    bool
-	endpoint   string
-	port       int
-	datacenter string
-	serviceID  string
+	Enabled        bool
+	RemoteEndpoint string
+	RemotePort     int
+	Datacenter     string
+	ServiceID      string
 }
 
 //MetaDataConf captures which metadata to be registered with service into consul for use during discovery
 type MetaDataConf struct {
-	enabled   bool
-	awsregion string
+	Enabled   bool
+	AWSRegion string
 }
 
 //LabelConf captures the aws tags that should be added to reported metrics as Labels
 type LabelConf struct {
-	enabled       bool
-	refreshPeriod int
+	Enabled       bool
+	RefreshPeriod int
 }
 
 //CollectorConf captures the list of collectors to use
 type CollectorConf struct {
-	goCollectionEnabled       bool
-	exporterCollectionEnabled bool
-	wmiCollectionEnabled      bool
-	agentCollectionEnabled    bool
-	enabledCollectors         string
-	metricNameMapping         []MetricMap
+	GoCollectionEnabled       bool
+	ExporterCollectionEnabled bool
+	WmiCollectionEnabled      bool
+	AgentCollectionEnabled    bool
+	EnabledCollectors         string
+	MetricRemap               []MetricMap
 }
 
 //MetricMap captures a mapping between one or more WMI metrics and the name it should be reported with
 type MetricMap struct {
-	wmiMetricName  []string
-	exportName     string
-	dropMetric     bool
-	computedMetric bool
-	computeLogic   string
+	WmiMetricName  []string
+	ExportName     string
+	DropMetric     bool
+	ComputedMetric bool
+	ComputeLogic   string
 }
 
 //ServiceConf captures agent related configurations
 type ServiceConf struct {
-	listenIP           string
-	listenPort         int
-	metricPath         string
-	collectionInterval int
-	serviceName        string
+	ListenIP           string
+	ListenPort         int
+	MetricPath         string
+	CollectionInterval int
+	ServiceName        string
 }
 
 func (c ConsulConf) getAddress() string {
-	return "http://" + c.endpoint + ":" + strconv.Itoa(c.port)
+	return "http://" + c.RemoteEndpoint + ":" + strconv.Itoa(c.RemotePort)
 }
 
 func (s ServiceConf) getAddress() string {
-	return s.listenIP + ":" + strconv.Itoa(s.listenPort)
+	return s.ListenIP + ":" + strconv.Itoa(s.ListenPort)
 }

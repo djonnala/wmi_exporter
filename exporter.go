@@ -167,10 +167,10 @@ func main() {
 
 	stopCh := make(chan bool)
 	if !isInteractive {
-		go svc.Run(ucmconfig.Service.serviceName, &wmiExporterService{stopCh: stopCh})
+		go svc.Run(ucmconfig.Service.ServiceName, &wmiExporterService{stopCh: stopCh})
 	}
 
-	collectors, err := loadCollectors(ucmconfig.Collectors.enabledCollectors)
+	collectors, err := loadCollectors(ucmconfig.Collectors.EnabledCollectors)
 	if err != nil {
 		log.Fatalf("Couldn't load collectors: %s", err)
 	}
@@ -180,10 +180,10 @@ func main() {
 	nodeCollector := WmiCollector{collectors: collectors}
 	prometheus.MustRegister(nodeCollector)
 
-	http.Handle(ucmconfig.Service.metricPath, prometheus.Handler())
+	http.Handle(ucmconfig.Service.MetricPath, prometheus.Handler())
 	http.HandleFunc("/health", healthCheck)
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, ucmconfig.Service.metricPath, http.StatusMovedPermanently)
+		http.Redirect(w, r, ucmconfig.Service.MetricPath, http.StatusMovedPermanently)
 	})
 
 	log.Infoln("Starting WMI exporter", version.Info())
