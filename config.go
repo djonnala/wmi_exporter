@@ -21,11 +21,12 @@ type ConfigurationParameters struct {
 
 //ConsulConf captures configuration parameters needed for service discovery registration with Consul
 type ConsulConf struct {
-	Enabled        bool
-	RemoteEndpoint string
-	RemotePort     int
-	Datacenter     string
-	ServiceID      string
+	Enabled             bool
+	RemoteEndpoint      string
+	RemotePort          int
+	Datacenter          string
+	ServiceID           string
+	RegisterServiceName string
 }
 
 //MetaDataConf captures which metadata to be registered with service into consul for use during discovery

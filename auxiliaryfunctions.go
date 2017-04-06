@@ -74,7 +74,7 @@ func Register() {
 		Datacenter: ucmconfig.ServiceDiscovery.Datacenter,
 		Service: &consul.AgentService{
 			ID:      ucmconfig.ServiceDiscovery.ServiceID,
-			Service: ucmconfig.Service.ServiceName,
+			Service: ucmconfig.ServiceDiscovery.RegisterServiceName,
 			Tags:    tags,
 			Port:    ucmconfig.Service.ListenPort,
 			Address: hostip,

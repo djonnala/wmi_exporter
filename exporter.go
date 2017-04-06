@@ -140,6 +140,7 @@ func main() {
 	)
 	flag.Parse()
 
+	fmt.Println("My current build>>")
 	if *showVersion {
 		fmt.Fprintln(os.Stdout, version.Print("wmi_exporter"))
 		os.Exit(0)
@@ -188,6 +189,10 @@ func main() {
 
 	log.Infoln("Starting WMI exporter", version.Info())
 	log.Infoln("Build context", version.BuildContext())
+	//register to consul
+	Register()
+	//deregister from consul when done
+	defer DeRegister()
 
 	go func() {
 		log.Infoln("Starting server on", ucmconfig.Service.getAddress())
@@ -225,8 +230,6 @@ func (s *wmiExporterService) Execute(args []string, r <-chan svc.ChangeRequest, 
 	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown
 	changes <- svc.Status{State: svc.StartPending}
 	changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
-	//register to consul
-	Register()
 loop:
 	for {
 		select {
@@ -235,8 +238,6 @@ loop:
 			case svc.Interrogate:
 				changes <- c.CurrentStatus
 			case svc.Stop, svc.Shutdown:
-				//deregister from consul
-				DeRegister()
 				s.stopCh <- true
 				break loop
 			default:

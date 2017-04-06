@@ -4,9 +4,10 @@ Title = "WMI Exporter Configuration"
 [ServiceDiscovery]
     Enabled = true
     RemoteEndpoint = "dev-ucm-con-w2a-a.corporate.t-mobile.com"
-    RemotePort = 5500
+    RemotePort = 8500
     Datacenter = "ucm-west"
     ServiceID = "ucm.agent.wmiExporter"
+    RegisterServiceName = "dev-mon-agent-ucm"
 
 [MetadataReporting]
     Enabled = true
