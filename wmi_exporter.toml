@@ -16,6 +16,27 @@ Title = "WMI Exporter Configuration"
 [AwsTagsToLabels]
     Enabled = true
     RefreshPeriod = 3600
+    [[AwsTagsToLabels.TagsToCapture]]
+    	TagName  = ["instanceId"]
+	LabelName    = "host"
+    MissingLabel = "UNTAGGED"
+    [[AwsTagsToLabels.TagsToCapture]]
+    	TagName  = ["Application"]
+	LabelName    = "application"
+    MissingLabel = "UNTAGGED"
+    [[AwsTagsToLabels.TagsToCapture]]
+    	TagName  = ["Environment"]
+	LabelName    = "environment"
+    MissingLabel = "UNTAGGED"
+    [[AwsTagsToLabels.TagsToCapture]]
+    	TagName  = ["Stack","Role"]
+	LabelName    = "stack_role"
+    MissingLabel = "UNTAGGED"
+    MergeSeparator="_"
+    [[AwsTagsToLabels.TagsToCapture]]
+    	TagName  = ["Name"]
+	LabelName    = "name"
+    MissingLabel = "UNTAGGED"
 
 [Collectors]
     GoCollectionEnabled = true
@@ -23,6 +44,7 @@ Title = "WMI Exporter Configuration"
     WmiCollectionEnabled = true
     AgentCollectionEnabled = false
     EnabledCollectors   = "cpu,os"
+    MetricTimeout = 2
     [[Collectors.MetricRemap]]
         WmiMetricName = ["test"]
         ExportName = "export_test"

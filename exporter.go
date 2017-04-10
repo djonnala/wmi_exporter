@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/signal"
 	"sort"
 	"strings"
 	"sync"
@@ -170,6 +171,16 @@ func main() {
 	if !isInteractive {
 		go svc.Run(ucmconfig.Service.ServiceName, &wmiExporterService{stopCh: stopCh})
 	}
+
+	// adding handler for SIGINT
+	go func() {
+		sigchan := make(chan os.Signal, 10)
+		signal.Notify(sigchan, os.Interrupt)
+		<-sigchan
+
+		log.Infoln("Detected SIGINT. handling shutdown.")
+		stopCh <- true
+	}()
 
 	collectors, err := loadCollectors(ucmconfig.Collectors.EnabledCollectors)
 	if err != nil {

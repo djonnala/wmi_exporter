@@ -39,6 +39,15 @@ type MetaDataConf struct {
 type LabelConf struct {
 	Enabled       bool
 	RefreshPeriod int
+	TagsToCaptue  []TagLabelMap
+}
+
+//TagLabelMap captures a mapping between one or more WMI metrics and the name it should be reported with
+type TagLabelMap struct {
+	TagName        []string
+	LabelName      string
+	MergeSeparator string
+	MissingLabel   string
 }
 
 //CollectorConf captures the list of collectors to use
@@ -48,6 +57,7 @@ type CollectorConf struct {
 	WmiCollectionEnabled      bool
 	AgentCollectionEnabled    bool
 	EnabledCollectors         string
+	MetricTimeout             int
 	MetricRemap               []MetricMap
 }
 
