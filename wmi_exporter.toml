@@ -43,14 +43,48 @@ Title = "WMI Exporter Configuration"
     ExporterCollectionEnabled = true
     WmiCollectionEnabled = true
     AgentCollectionEnabled = false
-    EnabledCollectors   = "cpu,os"
     MetricTimeout = 2
-    [[Collectors.MetricRemap]]
-        WmiMetricName = ["test"]
-        ExportName = "export_test"
-    [[Collectors.MetricRemap]]
-        WmiMetricName = ["test2"]
-        ExportName = "export_test2"
+    [Collectors.EnabledCollectors]
+        [Collectors.EnabledCollectors.tcpu]
+            Namespace = "NEW"
+            [[Collectors.EnabledCollectors.tcpu.ExportedMetrics]]
+                SourceName = ["time_total"]
+                ExportName = "TotalIdleCPUTime"
+                ComputedMetric = true
+                ComputeLogic = "sum([time_total.mode@idle])"
+            [[Collectors.EnabledCollectors.tcpu.ExportedMetrics]]
+                SourceName = ["time_total"]
+                ExportName = "TotalIdleCPUPercent"
+                ComputedMetric = true
+                ComputeLogic = "average([PercentIdleTime])"
+        [Collectors.EnabledCollectors.os]
+            Namespace = "collectd"
+            DefaultDrop = true
+            [[Collectors.EnabledCollectors.os.ExportedMetrics]]
+                SourceName = ["paging_free_bytes"]
+                ExportName = "FreePaging"
+            [[Collectors.EnabledCollectors.os.ExportedMetrics]]
+                SourceName = ["physical_memory_free_bytes"]
+                ExportName = "FreeMemory"
+        [Collectors.EnabledCollectors.test]
+            Namespace = "testn"
+            DefaultDrop = true
+            [[Collectors.EnabledCollectors.test.ExportedMetrics]]
+                SourceName = ["test1"]
+                ExportName = "export_test"
+            [[Collectors.EnabledCollectors.test.ExportedMetrics]]
+                SourceName = ["test3", "test4"]
+                ExportName = "export_test_3_4"
+                ComputedMetric = true
+                ComputeLogic = "test3 + test4"
+            [[Collectors.EnabledCollectors.test.ExportedMetrics]]
+                SourceName = ["test4", "test5"]
+                ExportName = "export_test_4_5"
+            [[Collectors.EnabledCollectors.test.ExportedMetrics]]
+                SourceName = ["test3", "test4", "test5"]
+                ExportName = "export_test_3_4_5"
+                ComputedMetric = true
+                ComputeLogic = "(test3 + test4) / test5 * 100"
 
 [Service]
     ListenPort =  9103

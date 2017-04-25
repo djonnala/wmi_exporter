@@ -1,4 +1,4 @@
-// returns data points from Win32_PerfRawData_PerfOS_Processor
+// Package collector returns data points from Win32_PerfRawData_PerfOS_Processor
 // https://msdn.microsoft.com/en-us/library/aa394317(v=vs.90).aspx - Win32_PerfRawData_PerfOS_Processor class
 package collector
 
@@ -11,6 +11,7 @@ import (
 )
 
 func init() {
+	defer trace()()
 	Factories["cpu"] = NewCPUCollector
 }
 
@@ -23,31 +24,32 @@ type CPUCollector struct {
 }
 
 func NewCPUCollector() (Collector, error) {
+	defer trace()()
 	const subsystem = "cpu"
 	return &CPUCollector{
 		CStateSecondsTotal: prometheus.NewDesc(
 			prometheus.BuildFQName(Namespace, subsystem, "cstate_seconds_total"),
 			"Time spent in low-power idle state",
-			[]string{"core", "state"},
+			GetLabelNames("core", "state"),
 			nil,
 		),
 		TimeTotal: prometheus.NewDesc(
 			prometheus.BuildFQName(Namespace, subsystem, "time_total"),
 			"Time that processor spent in different modes (idle, user, system, ...)",
-			[]string{"core", "mode"},
+			GetLabelNames("core", "mode"),
 			nil,
 		),
 
 		InterruptsTotal: prometheus.NewDesc(
 			prometheus.BuildFQName(Namespace, subsystem, "interrupts_total"),
 			"Total number of received and serviced hardware interrupts",
-			[]string{"core"},
+			GetLabelNames("core"),
 			nil,
 		),
 		DPCsTotal: prometheus.NewDesc(
 			prometheus.BuildFQName(Namespace, subsystem, "dpcs_total"),
 			"Total number of received and serviced deferred procedure calls (DPCs)",
-			[]string{"core"},
+			GetLabelNames("core"),
 			nil,
 		),
 	}, nil
@@ -56,6 +58,7 @@ func NewCPUCollector() (Collector, error) {
 // Collect sends the metric values for each metric
 // to the provided prometheus Metric channel.
 func (c *CPUCollector) Collect(ch chan<- prometheus.Metric) error {
+	defer trace()()
 	if desc, err := c.collect(ch); err != nil {
 		log.Println("[ERROR] failed collecting os metrics:", desc, err)
 		return err
@@ -116,6 +119,7 @@ type Win32_PerfRawData_Counters_ProcessorInformation struct {
 }*/
 
 func (c *CPUCollector) collect(ch chan<- prometheus.Metric) (*prometheus.Desc, error) {
+	defer trace()()
 	var dst []Win32_PerfRawData_PerfOS_Processor
 	q := wmi.CreateQuery(&dst, "")
 	if err := wmi.Query(q, &dst); err != nil {
@@ -123,6 +127,8 @@ func (c *CPUCollector) collect(ch chan<- prometheus.Metric) (*prometheus.Desc, e
 	}
 
 	for _, data := range dst {
+		log.Println("wmi.cpu->", data.Name)
+
 		if strings.Contains(data.Name, "_Total") {
 			continue
 		}
@@ -147,63 +153,63 @@ func (c *CPUCollector) collect(ch chan<- prometheus.Metric) (*prometheus.Desc, e
 			c.CStateSecondsTotal,
 			prometheus.GaugeValue,
 			float64(data.PercentC1Time)*ticksToSecondsScaleFactor,
-			core, "c1",
+			GetLabelValues(core, "c1")...,
 		)
 		ch <- prometheus.MustNewConstMetric(
 			c.CStateSecondsTotal,
 			prometheus.GaugeValue,
 			float64(data.PercentC2Time)*ticksToSecondsScaleFactor,
-			core, "c2",
+			GetLabelValues(core, "c2")...,
 		)
 		ch <- prometheus.MustNewConstMetric(
 			c.CStateSecondsTotal,
 			prometheus.GaugeValue,
 			float64(data.PercentC3Time)*ticksToSecondsScaleFactor,
-			core, "c3",
+			GetLabelValues(core, "c3")...,
 		)
 
 		ch <- prometheus.MustNewConstMetric(
 			c.TimeTotal,
 			prometheus.GaugeValue,
 			float64(data.PercentIdleTime)*ticksToSecondsScaleFactor,
-			core, "idle",
+			GetLabelValues(core, "idle")...,
 		)
 		ch <- prometheus.MustNewConstMetric(
 			c.TimeTotal,
 			prometheus.GaugeValue,
 			float64(data.PercentInterruptTime)*ticksToSecondsScaleFactor,
-			core, "interrupt",
+			GetLabelValues(core, "interrupt")...,
 		)
 		ch <- prometheus.MustNewConstMetric(
 			c.TimeTotal,
 			prometheus.GaugeValue,
 			float64(data.PercentDPCTime)*ticksToSecondsScaleFactor,
-			core, "dpc",
+			GetLabelValues(core, "dpc")...,
 		)
 		ch <- prometheus.MustNewConstMetric(
 			c.TimeTotal,
 			prometheus.GaugeValue,
 			float64(data.PercentPrivilegedTime)*ticksToSecondsScaleFactor,
-			core, "privileged",
+			GetLabelValues(core, "privileged")...,
 		)
 		ch <- prometheus.MustNewConstMetric(
 			c.TimeTotal,
 			prometheus.GaugeValue,
 			float64(data.PercentUserTime)*ticksToSecondsScaleFactor,
-			core, "user",
+			GetLabelValues(core, "user")...,
 		)
 
 		ch <- prometheus.MustNewConstMetric(
 			c.InterruptsTotal,
 			prometheus.CounterValue,
 			float64(data.InterruptsPersec),
-			core,
+			GetLabelValues(core)...,
 		)
 		ch <- prometheus.MustNewConstMetric(
 			c.DPCsTotal,
 			prometheus.CounterValue,
 			float64(data.DPCsQueuedPersec),
-			core,
+			GetLabelValues(core)...,
 		)
 	}
 
