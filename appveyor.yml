@@ -10,7 +10,7 @@ environment:
     - MSI_ARCH: 386
       GOARCH: 386
 
-clone_folder: c:\gopath\src\github.com\martinlindhe\wmi_exporter
+clone_folder: c:\gopath\src\github.com\sujitvp\wmi_exporter
 
 install:
   - go version

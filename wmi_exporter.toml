@@ -1,0 +1,93 @@
+
+Title = "WMI Exporter Configuration"
+
+[ServiceDiscovery]
+    Enabled = true
+    RemoteEndpoint = "dev-ucm-con-w2a-a.corporate.t-mobile.com"
+    RemotePort = 8500
+    Datacenter = "ucm-west"
+    ServiceID = "ucm.agent.wmiExporter"
+    RegisterServiceName = "dev-mon-agent-ucm"
+
+[MetadataReporting]
+    Enabled = true
+    AWSRegion = "us-west-2"
+
+[AwsTagsToLabels]
+    Enabled = true
+    RefreshPeriod = 3600
+    [[AwsTagsToLabels.TagsToCapture]]
+    	TagName  = ["instanceId"]
+	LabelName    = "host"
+    MissingLabel = "UNTAGGED"
+    [[AwsTagsToLabels.TagsToCapture]]
+    	TagName  = ["Application"]
+	LabelName    = "application"
+    MissingLabel = "UNTAGGED"
+    [[AwsTagsToLabels.TagsToCapture]]
+    	TagName  = ["Environment"]
+	LabelName    = "environment"
+    MissingLabel = "UNTAGGED"
+    [[AwsTagsToLabels.TagsToCapture]]
+    	TagName  = ["Stack","Role"]
+	LabelName    = "stack_role"
+    MissingLabel = "UNTAGGED"
+    MergeSeparator="_"
+    [[AwsTagsToLabels.TagsToCapture]]
+    	TagName  = ["Name"]
+	LabelName    = "name"
+    MissingLabel = "UNTAGGED"
+
+[Collectors]
+    GoCollectionEnabled = true
+    ExporterCollectionEnabled = true
+    WmiCollectionEnabled = true
+    AgentCollectionEnabled = false
+    MetricTimeout = 2
+    [Collectors.EnabledCollectors]
+        [Collectors.EnabledCollectors.tcpu]
+            Namespace = "NEW"
+            [[Collectors.EnabledCollectors.tcpu.ExportedMetrics]]
+                SourceName = ["time_total"]
+                ExportName = "TotalIdleCPUTime"
+                ComputedMetric = true
+                ComputeLogic = "sum([time_total.mode@idle])"
+            [[Collectors.EnabledCollectors.tcpu.ExportedMetrics]]
+                SourceName = ["time_total"]
+                ExportName = "TotalIdleCPUPercent"
+                ComputedMetric = true
+                ComputeLogic = "average([PercentIdleTime])"
+        [Collectors.EnabledCollectors.os]
+            Namespace = "collectd"
+            DefaultDrop = true
+            [[Collectors.EnabledCollectors.os.ExportedMetrics]]
+                SourceName = ["paging_free_bytes"]
+                ExportName = "FreePaging"
+            [[Collectors.EnabledCollectors.os.ExportedMetrics]]
+                SourceName = ["physical_memory_free_bytes"]
+                ExportName = "FreeMemory"
+        [Collectors.EnabledCollectors.test]
+            Namespace = "testn"
+            DefaultDrop = true
+            [[Collectors.EnabledCollectors.test.ExportedMetrics]]
+                SourceName = ["test1"]
+                ExportName = "export_test"
+            [[Collectors.EnabledCollectors.test.ExportedMetrics]]
+                SourceName = ["test3", "test4"]
+                ExportName = "export_test_3_4"
+                ComputedMetric = true
+                ComputeLogic = "test3 + test4"
+            [[Collectors.EnabledCollectors.test.ExportedMetrics]]
+                SourceName = ["test4", "test5"]
+                ExportName = "export_test_4_5"
+            [[Collectors.EnabledCollectors.test.ExportedMetrics]]
+                SourceName = ["test3", "test4", "test5"]
+                ExportName = "export_test_3_4_5"
+                ComputedMetric = true
+                ComputeLogic = "(test3 + test4) / test5 * 100"
+
+[Service]
+    ListenPort =  9103
+    MetricPath = "/metrics"
+    CollectionInterval = 60
+    ServiceName = "wmi_exporter"

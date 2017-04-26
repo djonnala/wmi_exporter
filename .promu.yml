@@ -1,5 +1,5 @@
 repository:
-    path: github.com/martinlindhe/wmi_exporter
+    path: github.com/sujitvp/wmi_exporter
 build:
     ldflags: |
         -X {{repoPath}}/vendor/github.com/prometheus/common/version.Version={{.Version}}
