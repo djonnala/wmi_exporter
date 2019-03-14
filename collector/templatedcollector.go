@@ -13,7 +13,7 @@ import (
 
 //NewTemplateCollector ...
 func NewTemplateCollector(subsystem string, t CollectableTemplate) (Collector, error) {
-	defer trace(O())
+	defer trace()()
 	coll := TemplateCollector{
 		metricDescList: make(map[string]*prometheus.Desc),
 		metricExprList: make(map[string]*govaluate.EvaluableExpression),
@@ -55,7 +55,7 @@ type TemplateCollector struct {
 // Collect sends the metric values for each metric
 // to the provided prometheus Metric channel.
 func (c *TemplateCollector) Collect(ch chan<- prometheus.Metric) error {
-	defer trace(O())
+	defer trace()()
 
 	//populate with any built-in metrics
 	ct, _ := c.tobj.collect(c.metricDescList, ch)
@@ -74,13 +74,13 @@ func (c *TemplateCollector) Collect(ch chan<- prometheus.Metric) error {
 
 // GetLabelNames builds Label names with configured labels from tags and metric-specific labels
 func GetLabelNames(m ...string) []string {
-	defer trace(O())
+	defer trace()()
 	return append(utils.TagLabelNames, m...)
 }
 
 // GetLabelValues builds label values with configured labels from tags and metric-specific labels
 func GetLabelValues(m ...string) []string {
-	defer trace(O())
+	defer trace()()
 	return append(utils.TagLabelValues, m...)
 }
 
