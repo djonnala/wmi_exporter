@@ -11,16 +11,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sujitvp/go-tracey"
+	"github.com/djonnala/go-tracey"
 
 	"golang.org/x/sys/windows/svc"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
-	"github.com/sujitvp/wmi_exporter/collector"
-	"github.com/sujitvp/wmi_exporter/conf"
-	"github.com/sujitvp/wmi_exporter/utils"
+	"github.com/djonnala/wmi_exporter/collector"
+	"github.com/djonnala/wmi_exporter/conf"
+	"github.com/djonnala/wmi_exporter/utils"
 )
 
 var trace = tracey.New(&conf.TraceConfig)

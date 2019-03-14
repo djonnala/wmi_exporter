@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/sujitvp/go-tracey"
+	"github.com/djonnala/go-tracey"
 
 	"strconv"
 
@@ -16,7 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	consul "github.com/hashicorp/consul/api"
 	"github.com/prometheus/common/log"
-	"github.com/sujitvp/wmi_exporter/conf"
+	"github.com/djonnala/wmi_exporter/conf"
 )
 
 var trace = tracey.New(&conf.TraceConfig)

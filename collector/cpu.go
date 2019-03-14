@@ -11,7 +11,7 @@ import (
 )
 
 func init() {
-	defer trace()()
+	defer trace(O())
 	Factories["cpu"] = NewCPUCollector
 }
 
@@ -24,7 +24,7 @@ type CPUCollector struct {
 }
 
 func NewCPUCollector() (Collector, error) {
-	defer trace()()
+	defer trace(O())
 	const subsystem = "cpu"
 	return &CPUCollector{
 		CStateSecondsTotal: prometheus.NewDesc(
@@ -58,7 +58,7 @@ func NewCPUCollector() (Collector, error) {
 // Collect sends the metric values for each metric
 // to the provided prometheus Metric channel.
 func (c *CPUCollector) Collect(ch chan<- prometheus.Metric) error {
-	defer trace()()
+	defer trace(O())
 	if desc, err := c.collect(ch); err != nil {
 		log.Println("[ERROR] failed collecting os metrics:", desc, err)
 		return err
@@ -119,7 +119,7 @@ type Win32_PerfRawData_Counters_ProcessorInformation struct {
 }*/
 
 func (c *CPUCollector) collect(ch chan<- prometheus.Metric) (*prometheus.Desc, error) {
-	defer trace()()
+	defer trace(O())
 	var dst []Win32_PerfRawData_PerfOS_Processor
 	q := wmi.CreateQuery(&dst, "")
 	if err := wmi.Query(q, &dst); err != nil {

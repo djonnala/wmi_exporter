@@ -5,7 +5,7 @@ import (
 
 	"github.com/prometheus/common/log"
 
-	"github.com/sujitvp/go-tracey"
+	"github.com/djonnala/go-tracey"
 
 	"strings"
 

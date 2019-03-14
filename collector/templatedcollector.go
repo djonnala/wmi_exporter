@@ -7,13 +7,13 @@ import (
 	"github.com/prometheus/common/log"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/sujitvp/wmi_exporter/conf"
-	"github.com/sujitvp/wmi_exporter/utils"
+	"github.com/djonnala/wmi_exporter/conf"
+	"github.com/djonnala/wmi_exporter/utils"
 )
 
 //NewTemplateCollector ...
 func NewTemplateCollector(subsystem string, t CollectableTemplate) (Collector, error) {
-	defer trace()()
+	defer trace(O())
 	coll := TemplateCollector{
 		metricDescList: make(map[string]*prometheus.Desc),
 		metricExprList: make(map[string]*govaluate.EvaluableExpression),
@@ -55,7 +55,7 @@ type TemplateCollector struct {
 // Collect sends the metric values for each metric
 // to the provided prometheus Metric channel.
 func (c *TemplateCollector) Collect(ch chan<- prometheus.Metric) error {
-	defer trace()()
+	defer trace(O())
 
 	//populate with any built-in metrics
 	ct, _ := c.tobj.collect(c.metricDescList, ch)
@@ -74,13 +74,13 @@ func (c *TemplateCollector) Collect(ch chan<- prometheus.Metric) error {
 
 // GetLabelNames builds Label names with configured labels from tags and metric-specific labels
 func GetLabelNames(m ...string) []string {
-	defer trace()()
+	defer trace(O())
 	return append(utils.TagLabelNames, m...)
 }
 
 // GetLabelValues builds label values with configured labels from tags and metric-specific labels
 func GetLabelValues(m ...string) []string {
-	defer trace()()
+	defer trace(O())
 	return append(utils.TagLabelValues, m...)
 }
 

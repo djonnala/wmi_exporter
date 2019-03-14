@@ -1,8 +1,8 @@
 package collector
 
 import (
-	"github.com/sujitvp/go-tracey"
-	"github.com/sujitvp/wmi_exporter/conf"
+	"github.com/djonnala/go-tracey"
+	"github.com/djonnala/wmi_exporter/conf"
 )
 
 var trace = tracey.New(&conf.TraceConfig)
